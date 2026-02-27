@@ -93,7 +93,7 @@
         /* ==========================================================================
            3. UI 컴포넌트 (카드, 패널, 툴팁 등)
            ========================================================================== */
-        .card { background-color: var(--bg-card); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); }
+        .card { background-color: var(--bg-card); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); min-width: 0; }
         .card-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         
         /* Typography & Badges */
@@ -121,7 +121,7 @@
         .tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 10px; }
         .tab-btn { padding: 8px 16px; background: none; border: none; cursor: pointer; color: var(--text-muted); font-weight: 600; border-bottom: 2px solid transparent; }
         .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .code-block { background-color: #1e293b; color: #f8fafc; padding: 15px; border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 0.9rem; overflow-x: auto; display: none; }
+        .code-block { background-color: #1e293b; color: #f8fafc; padding: 15px; border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 0.9rem; overflow-x: auto; overflow-y: auto; height: 320px; display: none; }
         .code-block.active { display: block; }
         .code-comment { color: #6ee7b7; }
         .code-keyword { color: #c084fc; }
@@ -129,7 +129,8 @@
         /* ==========================================================================
            4. 시각화 엔진 영역 (렌더러 및 컨트롤러)
            ========================================================================== */
-        .vis-container { display: flex; flex-direction: column; gap: 15px; grid-column: 1 / -1; }
+        .vis-container { display: flex; flex-direction: column; gap: 15px; grid-column: 1 / -1; min-width: 0; }
+        .info-container { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
         @media (min-width: 1200px) { .vis-container { grid-column: 1 / 2; } }
 
         /* Visualization Screen */
@@ -247,7 +248,7 @@
                 </div>
 
                 <!-- Right Column: Info & Code -->
-                <div class="info-container" style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="info-container">
                     <!-- Characteristics Card -->
                     <div class="card">
                         <div class="card-title">✨ 특징 및 용도</div>
@@ -298,7 +299,7 @@
                 oneLiner: '인접한 두 원소를 비교하여 큰 값을 뒤로 보내는 과정을 반복하는 직관적인 정렬',
                 useCases: ['데이터 크기가 매우 작을 때', '거의 정렬된 데이터에서 인접한 요소의 스왑만 필요할 때'],
                 mistakes: ['실무에서 큰 배열에 사용하면 성능이 매우 저하됨', '이미 정렬된 상태를 파악하지 못하고 끝까지 반복하는 실수'],
-                complexity: { best: 'O(N)', avg: 'O(N²)', worst: 'O(N²)', space: 'O(1) <span class="badge">In-place</span>', stability: 'Yes <span class="badge success">Stable</span>' },
+                complexity: { best: 'Ω(N)', avg: 'Θ(N²)', worst: 'O(N²)', space: 'O(1) <span class="badge">In-place</span>', stability: 'Yes <span class="badge success">Stable</span>' },
                 code: {
                     js: `function bubbleSort(arr) {\n  for (let i = 0; i < arr.length - 1; i++) {\n    for (let j = 0; j < arr.length - i - 1; j++) {\n      if (arr[j] > arr[j + 1]) [arr[j], arr[j+1]] = [arr[j+1], arr[j]];\n    }\n  }\n  return arr;\n}`,
                     py: `def bubble_sort(arr):\n    for i in range(len(arr) - 1):\n        for j in range(len(arr) - i - 1):\n            if arr[j] > arr[j + 1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr`,
@@ -311,7 +312,7 @@
                 oneLiner: '앞에서부터 차례대로 이미 정렬된 부분과 비교하여 자신의 위치를 찾아 삽입하는 정렬',
                 useCases: ['배열이 거의 정렬되어 있는 경우 (매우 빠름)', '실시간으로 데이터가 추가될 때 정렬을 유지하기 위해'],
                 mistakes: ['역순으로 정렬된 배열에서는 O(N²)으로 매우 느려짐'],
-                complexity: { best: 'O(N)', avg: 'O(N²)', worst: 'O(N²)', space: 'O(1) <span class="badge">In-place</span>', stability: 'Yes <span class="badge success">Stable</span>' },
+                complexity: { best: 'Ω(N)', avg: 'Θ(N²)', worst: 'O(N²)', space: 'O(1) <span class="badge">In-place</span>', stability: 'Yes <span class="badge success">Stable</span>' },
                 code: {
                     js: `function insertionSort(arr) {\n  for (let i = 1; i < arr.length; i++) {\n    let key = arr[i], j = i - 1;\n    while (j >= 0 && arr[j] > key) { arr[j + 1] = arr[j]; j--; }\n    arr[j + 1] = key;\n  }\n  return arr;\n}`,
                     py: `def insertion_sort(arr):\n    for i in range(1, len(arr)):\n        key, j = arr[i], i - 1\n        while j >= 0 and arr[j] > key:\n            arr[j + 1] = arr[j]\n            j -= 1\n        arr[j + 1] = key\n    return arr`,
@@ -324,7 +325,7 @@
                 oneLiner: '피벗(Pivot)을 기준으로 배열을 분할하고 재귀적으로 정렬하는 대표적인 분할 정복 알고리즘',
                 useCases: ['일반적인 상황에서 가장 빠르고 효율적인 정렬이 필요할 때'],
                 mistakes: ['피벗을 항상 첫 번째나 마지막으로 잡으면 이미 정렬된 배열에서 O(N²)이 됨'],
-                complexity: { best: 'O(N log N)', avg: 'O(N log N)', worst: 'O(N²)', space: 'O(log N)', stability: 'No <span class="badge danger">Unstable</span>' },
+                complexity: { best: 'Ω(N log N)', avg: 'Θ(N log N)', worst: 'O(N²)', space: 'O(log N)', stability: 'No <span class="badge danger">Unstable</span>' },
                 code: {
                     js: `function quickSort(arr, l=0, r=arr.length-1) {\n  if(l >= r) return;\n  let p = arr[r], i = l-1;\n  for(let j=l; j<r; j++) if(arr[j]<=p) [arr[++i], arr[j]] = [arr[j], arr[i]];\n  [arr[i+1], arr[r]] = [arr[r], arr[i+1]];\n  quickSort(arr, l, i);\n  quickSort(arr, i+2, r);\n}`,
                     py: `def quick_sort(arr, low, high):\n    if low < high:\n        p, i = arr[high], low - 1\n        for j in range(low, high):\n            if arr[j] <= p: i += 1; arr[i], arr[j] = arr[j], arr[i]\n        arr[i+1], arr[high] = arr[high], arr[i+1]\n        quick_sort(arr, low, i)\n        quick_sort(arr, i+2, high)`,
@@ -337,7 +338,7 @@
                 oneLiner: '배열을 절반씩 분할한 뒤, 정렬하면서 병합하여 O(N log N)을 보장하는 알고리즘',
                 useCases: ['데이터 크기에 상관없이 항상 안정적인 성능이 필요할 때', '연결 리스트(Linked List)를 정렬할 때 효율적임'],
                 mistakes: ['배열을 병합할 때 임시 배열(메모리)을 사용해야 하므로 메모리 제한이 빡빡한 곳에서는 불리함'],
-                complexity: { best: 'O(N log N)', avg: 'O(N log N)', worst: 'O(N log N)', space: 'O(N)', stability: 'Yes <span class="badge success">Stable</span>' },
+                complexity: { best: 'Ω(N log N)', avg: 'Θ(N log N)', worst: 'O(N log N)', space: 'O(N)', stability: 'Yes <span class="badge success">Stable</span>' },
                 code: {
                     js: `function mergeSort(arr) {\n  if(arr.length < 2) return arr;\n  let mid = Math.floor(arr.length / 2);\n  let left = mergeSort(arr.slice(0, mid));\n  let right = mergeSort(arr.slice(mid));\n  let res = [], i = 0, j = 0;\n  while(i < left.length && j < right.length)\n    res.push(left[i] <= right[j] ? left[i++] : right[j++]);\n  return [...res, ...left.slice(i), ...right.slice(j)];\n}`,
                     py: `def merge_sort(arr):\n    if len(arr) < 2: return arr\n    mid = len(arr) // 2\n    left, right = merge_sort(arr[:mid]), merge_sort(arr[mid:])\n    res, i, j = [], 0, 0\n    while i < len(left) and j < len(right):\n        if left[i] <= right[j]: res.append(left[i]); i+=1\n        else: res.append(right[j]); j+=1\n    return res + left[i:] + right[j:]`,
@@ -350,7 +351,7 @@
                 oneLiner: '배열을 최대 힙(Max Heap) 구조로 만든 뒤, 루트(최댓값)를 뽑아 배열 끝으로 보내며 정렬하는 방식',
                 useCases: ['메모리 추가 할당 없이 O(N log N) 성능이 필요할 때', '실시간으로 가장 큰(혹은 작은) K개의 원소를 뽑을 때'],
                 mistakes: ['트리 인덱싱(2*i+1, 2*i+2) 계산을 잘못하면 무한루프나 범위 오류 발생'],
-                complexity: { best: 'O(N log N)', avg: 'O(N log N)', worst: 'O(N log N)', space: 'O(1) <span class="badge">In-place</span>', stability: 'No <span class="badge danger">Unstable</span>' },
+                complexity: { best: 'Ω(N log N)', avg: 'Θ(N log N)', worst: 'O(N log N)', space: 'O(1) <span class="badge">In-place</span>', stability: 'No <span class="badge danger">Unstable</span>' },
                 code: {
                     js: `function heapSort(arr) {\n  let n = arr.length;\n  for(let i = Math.floor(n/2)-1; i>=0; i--) heapify(arr, n, i);\n  for(let i = n-1; i>0; i--) {\n    [arr[0], arr[i]] = [arr[i], arr[0]];\n    heapify(arr, i, 0);\n  }\n}\nfunction heapify(arr, n, i) {\n  let max = i, l = 2*i+1, r = 2*i+2;\n  if(l<n && arr[l]>arr[max]) max = l;\n  if(r<n && arr[r]>arr[max]) max = r;\n  if(max != i) { [arr[i], arr[max]] = [arr[max], arr[i]]; heapify(arr, n, max); }\n}`,
                     py: `def heapify(arr, n, i):\n    max_idx = i\n    l, r = 2*i+1, 2*i+2\n    if l < n and arr[l] > arr[max_idx]: max_idx = l\n    if r < n and arr[r] > arr[max_idx]: max_idx = r\n    if max_idx != i:\n        arr[i], arr[max_idx] = arr[max_idx], arr[i]\n        heapify(arr, n, max_idx)\ndef heap_sort(arr):\n    n = len(arr)\n    for i in range(n//2-1, -1, -1): heapify(arr, n, i)\n    for i in range(n-1, 0, -1):\n        arr[0], arr[i] = arr[i], arr[0]\n        heapify(arr, i, 0)`,
@@ -363,7 +364,7 @@
                 oneLiner: '정렬된 배열에서 탐색 범위를 절반씩 줄여가며 원하는 값을 빠르게 찾는 알고리즘',
                 useCases: ['데이터가 이미 정렬되어 있을 때 특정 값의 존재 여부를 찾을 때'],
                 mistakes: ['배열이 정렬되어 있지 않은데 사용하는 실수', 'mid 계산 시 오버플로우 방지 (low + (high-low)/2) 누락'],
-                complexity: { best: 'O(1)', avg: 'O(log N)', worst: 'O(log N)', space: 'O(1)', stability: 'N/A' },
+                complexity: { best: 'Ω(1)', avg: 'Θ(log N)', worst: 'O(log N)', space: 'O(1)', stability: 'N/A' },
                 code: {
                     js: `function binarySearch(arr, target) {\n  let l = 0, r = arr.length - 1;\n  while (l <= r) {\n    let m = Math.floor((l + r) / 2);\n    if (arr[m] === target) return m;\n    if (arr[m] < target) l = m + 1;\n    else r = m - 1;\n  }\n  return -1;\n}`,
                     py: `def binary_search(arr, target):\n    l, r = 0, len(arr) - 1\n    while l <= r:\n        m = (l + r) // 2\n        if arr[m] == target: return m\n        elif arr[m] < target: l = m + 1\n        else: r = m - 1\n    return -1`,
@@ -376,7 +377,7 @@
                 oneLiner: '배열의 인덱스까지의 합을 미리 구해두어, 특정 구간의 합을 O(1)에 구하는 테크닉',
                 useCases: ['배열이 변경되지 않고 구간의 합을 반복해서 여러 번 구해야 할 때'],
                 mistakes: ['인덱스 에러 방지를 위해 Prefix Sum 배열의 크기를 N+1로 잡는 것을 잊어버림'],
-                complexity: { best: 'O(N) 전처리', avg: 'O(1) 쿼리', worst: 'O(1)', space: 'O(N)', stability: 'N/A' },
+                complexity: { best: 'Ω(N) <span class="badge">전처리</span>', avg: 'Θ(1) <span class="badge">쿼리</span>', worst: 'O(1)', space: 'O(N)', stability: 'N/A' },
                 code: {
                     js: `function build(arr) {\n  let psum = new Array(arr.length+1).fill(0);\n  for(let i=0; i<arr.length; i++) psum[i+1] = psum[i] + arr[i];\n  return psum;\n}\nfunction rangeSum(psum, L, R) { return psum[R+1] - psum[L]; }`,
                     py: `def build(arr):\n    psum = [0]*(len(arr)+1)\n    for i in range(len(arr)): psum[i+1] = psum[i] + arr[i]\n    return psum\n\ndef range_sum(psum, L, R): return psum[R+1] - psum[L]`,
@@ -389,7 +390,7 @@
                 oneLiner: '2차원 행렬에서 특정 사각형 영역의 합을 O(1)에 구하는 확장된 누적합 기법',
                 useCases: ['이미지 처리(박스 블러), 2D 보드 게임(체스판 합) 등에서 사각형 쿼리를 여러 번 할 때'],
                 mistakes: ['P[i][j] 공식을 작성할 때 교집합 영역(P[i-1][j-1])을 빼주는 것을 누락함'],
-                complexity: { best: 'O(NM) 전처리', avg: 'O(1) 쿼리', worst: 'O(1)', space: 'O(NM)', stability: 'N/A' },
+                complexity: { best: 'Ω(NM) <span class="badge">전처리</span>', avg: 'Θ(1) <span class="badge">쿼리</span>', worst: 'O(1)', space: 'O(NM)', stability: 'N/A' },
                 code: {
                     js: `function build2D(mat) {\n  let r = mat.length, c = mat[0].length;\n  let p = Array.from({length:r+1}, ()=>Array(c+1).fill(0));\n  for(let i=1; i<=r; i++) for(let j=1; j<=c; j++)\n    p[i][j] = mat[i-1][j-1] + p[i-1][j] + p[i][j-1] - p[i-1][j-1];\n  return p;\n}\n// (r1,c1) 부터 (r2,c2) 까지\nfunction query(p, r1, c1, r2, c2) {\n  return p[r2+1][c2+1] - p[r1][c2+1] - p[r2+1][c1] + p[r1][c1];\n}`,
                     py: `def build2D(mat):\n    R, C = len(mat), len(mat[0])\n    p = [[0]*(C+1) for _ in range(R+1)]\n    for i in range(1, R+1):\n        for j in range(1, C+1):\n            p[i][j] = mat[i-1][j-1] + p[i-1][j] + p[i][j-1] - p[i-1][j-1]\n    return p`,
@@ -402,7 +403,7 @@
                 oneLiner: '시작 노드에서 가까운 노드부터 큐(Queue)를 이용해 계층적으로 탐색하는 알고리즘 (※ 시각화는 항상 노드 0에서 시작합니다)',
                 useCases: ['가중치가 없는 그래프에서 최단 경로 찾기', '웹 크롤링, 퍼즐 게임 최소 이동 횟수'],
                 mistakes: ['큐에 넣을 때 방문 처리(visited)를 하지 않고 꺼낼 때 하면 메모리 초과 발생'],
-                complexity: { best: 'O(V + E)', avg: 'O(V + E)', worst: 'O(V + E)', space: 'O(V)', stability: 'N/A' },
+                complexity: { best: 'Ω(V + E)', avg: 'Θ(V + E)', worst: 'O(V + E)', space: 'O(V)', stability: 'N/A' },
                 code: {
                     js: `function BFS(graph, start) {\n  let visited = new Set([start]);\n  let queue = [start];\n  while (queue.length > 0) {\n    let node = queue.shift();\n    for (let neighbor of graph[node]) {\n      if (!visited.has(neighbor)) {\n        visited.add(neighbor); queue.push(neighbor);\n      }\n    }\n  }\n}`,
                     py: `from collections import deque\ndef BFS(graph, start):\n    visited = set([start])\n    queue = deque([start])\n    while queue:\n        node = queue.popleft()\n        for nxt in graph[node]:\n            if nxt not in visited: visited.add(nxt); queue.append(nxt)`,
@@ -415,7 +416,7 @@
                 oneLiner: '갈 수 있는 만큼 깊게 파고들다 막히면 되돌아오는 백트래킹 기반 탐색 (※ 시각화는 항상 노드 0에서 시작합니다)',
                 useCases: ['미로 찾기, 위상 정렬, 사이클 탐지', '조건을 만족하는 조합/순열 찾기'],
                 mistakes: ['재귀 깊이가 너무 깊어져서 Stack Overflow 발생'],
-                complexity: { best: 'O(V + E)', avg: 'O(V + E)', worst: 'O(V + E)', space: 'O(V)', stability: 'N/A' },
+                complexity: { best: 'Ω(V + E)', avg: 'Θ(V + E)', worst: 'O(V + E)', space: 'O(V)', stability: 'N/A' },
                 code: {
                     js: `function DFS(graph, start, visited = new Set()) {\n  visited.add(start);\n  for (let neighbor of graph[start])\n    if (!visited.has(neighbor)) DFS(graph, neighbor, visited);\n}`,
                     py: `def DFS(graph, start, visited=None):\n    if visited is None: visited = set()\n    visited.add(start)\n    for nxt in graph[start]:\n        if nxt not in visited: DFS(graph, nxt, visited)`,
@@ -428,7 +429,7 @@
                 oneLiner: '음의 가중치가 없는 그래프에서 한 정점에서 다른 모든 정점까지의 최단 거리를 구하는 알고리즘 (※ 시각화는 항상 노드 0에서 시작합니다)',
                 useCases: ['지도 앱의 길찾기 알고리즘의 기초', '네트워크 라우팅 프로토콜(OSPF)'],
                 mistakes: ['음수 가중치가 있는 간선이 존재할 때 사용하면 무한루프나 오답 발생'],
-                complexity: { best: 'O(E log V)', avg: 'O(E log V)', worst: 'O(E log V)', space: 'O(V + E)', stability: 'N/A' },
+                complexity: { best: 'Ω(E log V)', avg: 'Θ(E log V)', worst: 'O(E log V)', space: 'O(V + E)', stability: 'N/A' },
                 code: {
                     js: `// JS는 기본 Priority Queue가 없어 배열 탐색으로 예시표현\nfunction dijkstra(graph, start, n) {\n  let dist = Array(n).fill(Infinity), visited = Array(n).fill(false);\n  dist[start] = 0;\n  for(let i=0; i<n; i++) {\n    let u = getMinNode(dist, visited); visited[u] = true;\n    for(let edge of graph[u]) {\n      if(dist[u] + edge.w < dist[edge.v]) dist[edge.v] = dist[u] + edge.w;\n    }\n  }\n}`,
                     py: `import heapq\ndef dijkstra(graph, start, n):\n    dist = [float('inf')] * n\n    dist[start] = 0; pq = [(0, start)]\n    while pq:\n        d, u = heapq.heappop(pq)\n        if d > dist[u]: continue\n        for v, w in graph[u]:\n            if d + w < dist[v]:\n                dist[v] = d + w\n                heapq.heappush(pq, (dist[v], v))\n    return dist`,
@@ -1205,7 +1206,7 @@
                 document.getElementById('algo-mistakes').innerHTML = data.mistakes.map(m => `<li>${m}</li>`).join('');
                 
                 let compHtml = `
-                    <tr><th>Best / Avg / Worst</th><td>${data.complexity.best} / ${data.complexity.avg} / ${data.complexity.worst}</td></tr>
+                    <tr><th>Best(Ω) / Avg(Θ) / Worst(O)</th><td>${data.complexity.best} / ${data.complexity.avg} / ${data.complexity.worst}</td></tr>
                     <tr><th>Space Complexity</th><td>${data.complexity.space}</td></tr>
                     <tr><th>Stability / Type</th><td>${data.complexity.stability}</td></tr>
                 `;
