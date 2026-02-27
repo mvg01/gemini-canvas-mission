@@ -6,6 +6,8 @@
     <title>피듶북(PDFBook) - AI 인터랙티브 PDF 학습 도구</title>
     <!-- pdf.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Tesseract.js CDN (OCR 엔진) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -144,12 +146,13 @@
             perspective: 3000px; 
         }
 
+        /* 레이아웃 공백 버그 수정: top, bottom, left, right를 0으로 주어 화면을 완벽히 채우도록 수정 */
         #placeholder {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            right: 0;
+            bottom: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -485,7 +488,18 @@
             reader.onload = async function() {
                 showToast('로딩 중...');
                 const typedarray = new Uint8Array(this.result);
-                state.pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
+                
+                // 🔥 폰트(특히 한글) 깨짐을 방지하는 핵심 변경 사항
+                // disableFontFace: true 설정으로 웹폰트 렌더링 실패 시 시스템 기본 폰트로 강제 대체합니다.
+                const loadingTask = pdfjsLib.getDocument({
+                    data: typedarray,
+                    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/', // jsdelivr CDN으로 안정성 상향
+                    cMapPacked: true,
+                    disableFontFace: true, 
+                    standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/'
+                });
+                state.pdfDoc = await loadingTask.promise;
+                
                 state.totalPages = state.pdfDoc.numPages; state.pageNum = 1; state.zoomLevel = 1.0;
                 totalPagesView.innerText = state.totalPages; jumpInput.max = state.totalPages;
                 await initBook(); prefetchFullPdfText();
@@ -635,14 +649,22 @@
         async function fetchGeminiAPI(prompt) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "STRING" } } } };
-            for (let i = 0; i < 3; i++) {
+            
+            for (let i = 0; i < 5; i++) {
                 try {
                     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    const data = await res.json(); if (data.error) throw new Error(data.error.message);
-                    return JSON.parse(data.candidates[0].content.parts[0].text);
-                } catch (err) { await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); }
+                    const data = await res.json(); 
+                    if (!res.ok) throw new Error(data.error?.message || "AI 서버 일시적 지연");
+                    if (data.error) throw new Error(data.error.message);
+                    
+                    let text = data.candidates[0].content.parts[0].text;
+                    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    return JSON.parse(text);
+                } catch (err) { 
+                    if (i === 4) throw new Error(err.message || "AI 서버 응답이 없습니다. 잠시 후 시도해주세요.");
+                    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); 
+                }
             }
-            throw new Error("AI 호출 실패");
         }
 
         async function prefetchFullPdfText() {
@@ -658,27 +680,65 @@
 
         async function getFullPdfText() { if (state.fullPdfTextCache) return state.fullPdfTextCache; await prefetchFullPdfText(); return state.fullPdfTextCache; }
 
-        async function renderAiStyles(pageNum, targetSentences, styleType) {
-            const p = state.pages[pageNum]; const textContent = await p.pdfPage.getTextContent();
-            let spacelessText = "", spacelessToItem = [];
-            textContent.items.forEach(item => {
-                for(let i=0; i<item.str.length; i++) {
-                    const c = item.str[i]; if(c !== ' ' && c !== '\n' && c !== '\r') { spacelessText += c; spacelessToItem.push(item); }
-                }
-            });
-            const vp = p.pdfPage.getViewport({ scale: state.pdfScale }); p.drawCtx.globalCompositeOperation = 'source-over';
-            targetSentences.forEach(sentence => {
-                const target = sentence.replace(/[\s\n\r]/g, ''); if(!target) return;
-                const idx = spacelessText.indexOf(target);
-                if (idx !== -1) {
-                    const matched = new Set(); for(let i = idx; i <= idx + target.length - 1; i++) matched.add(spacelessToItem[i]);
-                    matched.forEach(item => {
-                        const tr = pdfjsLib.Util.transform(vp.transform, item.transform);
-                        if (styleType === 'highlight') { p.drawCtx.fillStyle = 'rgba(253, 224, 71, 0.4)'; p.drawCtx.fillRect(tr[4], tr[5] - (item.height * state.pdfScale), item.width * state.pdfScale, item.height * state.pdfScale * 1.2); }
-                        else if (styleType === 'underline') { p.drawCtx.strokeStyle = 'rgba(239, 68, 68, 0.7)'; p.drawCtx.lineWidth = 3 * (state.pdfScale / 1.5); p.drawCtx.beginPath(); p.drawCtx.moveTo(tr[4], tr[5] + 2); p.drawCtx.lineTo(tr[4] + item.width * state.pdfScale, tr[5] + 2); p.drawCtx.stroke(); }
-                    });
-                }
-            });
+        async function renderAiStyles(pageNum, targetSentences, styleType, ocrData = null) {
+            const p = state.pages[pageNum]; 
+            p.drawCtx.globalCompositeOperation = 'source-over';
+
+            if (ocrData) {
+                // OCR 모드: Tesseract의 바운딩 박스를 활용
+                let spacelessText = "", spacelessToWord = [];
+                ocrData.words.forEach(word => {
+                    for(let i=0; i<word.text.length; i++) {
+                        const c = word.text[i]; 
+                        if(c !== ' ' && c !== '\n' && c !== '\r') { spacelessText += c; spacelessToWord.push(word); }
+                    }
+                });
+
+                targetSentences.forEach(sentence => {
+                    const target = sentence.replace(/[\s\n\r]/g, ''); if(!target) return;
+                    const idx = spacelessText.indexOf(target);
+                    if (idx !== -1) {
+                        const matchedWords = new Set(); 
+                        for(let i = idx; i <= idx + target.length - 1; i++) matchedWords.add(spacelessToWord[i]);
+                        matchedWords.forEach(word => {
+                            const b = word.bbox; // 캔버스 픽셀 기반 좌표
+                            if (styleType === 'highlight') { 
+                                p.drawCtx.fillStyle = 'rgba(253, 224, 71, 0.4)'; 
+                                p.drawCtx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0); 
+                            } else if (styleType === 'underline') { 
+                                p.drawCtx.strokeStyle = 'rgba(239, 68, 68, 0.7)'; 
+                                p.drawCtx.lineWidth = 3 * (state.pdfScale / 1.5); 
+                                p.drawCtx.beginPath(); 
+                                p.drawCtx.moveTo(b.x0, b.y1 + 2); 
+                                p.drawCtx.lineTo(b.x1, b.y1 + 2); 
+                                p.drawCtx.stroke(); 
+                            }
+                        });
+                    }
+                });
+            } else {
+                // 일반 PDF.js 텍스트 레이어 모드
+                const textContent = await p.pdfPage.getTextContent();
+                let spacelessText = "", spacelessToItem = [];
+                textContent.items.forEach(item => {
+                    for(let i=0; i<item.str.length; i++) {
+                        const c = item.str[i]; if(c !== ' ' && c !== '\n' && c !== '\r') { spacelessText += c; spacelessToItem.push(item); }
+                    }
+                });
+                const vp = p.pdfPage.getViewport({ scale: state.pdfScale }); 
+                targetSentences.forEach(sentence => {
+                    const target = sentence.replace(/[\s\n\r]/g, ''); if(!target) return;
+                    const idx = spacelessText.indexOf(target);
+                    if (idx !== -1) {
+                        const matched = new Set(); for(let i = idx; i <= idx + target.length - 1; i++) matched.add(spacelessToItem[i]);
+                        matched.forEach(item => {
+                            const tr = pdfjsLib.Util.transform(vp.transform, item.transform);
+                            if (styleType === 'highlight') { p.drawCtx.fillStyle = 'rgba(253, 224, 71, 0.4)'; p.drawCtx.fillRect(tr[4], tr[5] - (item.height * state.pdfScale), item.width * state.pdfScale, item.height * state.pdfScale * 1.2); }
+                            else if (styleType === 'underline') { p.drawCtx.strokeStyle = 'rgba(239, 68, 68, 0.7)'; p.drawCtx.lineWidth = 3 * (state.pdfScale / 1.5); p.drawCtx.beginPath(); p.drawCtx.moveTo(tr[4], tr[5] + 2); p.drawCtx.lineTo(tr[4] + item.width * state.pdfScale, tr[5] + 2); p.drawCtx.stroke(); }
+                        });
+                    }
+                });
+            }
         }
 
         async function handleAIAction(buttonId, actionType) {
@@ -686,15 +746,50 @@
             const p = state.pages[state.pageNum], btn = document.getElementById(buttonId), original = btn.innerHTML;
             btn.innerHTML = '<span class="icon">⏳</span><span class="label">분석중</span>'; btn.disabled = true;
             try {
-                const full = await getFullPdfText(); const content = await p.pdfPage.getTextContent();
-                const current = content.items.map(it => it.str).join(' '); if (current.trim().length < 20) throw new Error("텍스트 부족");
-                showToast(`페이지(${state.pageNum}p) 분석 중...`);
-                let instr = actionType === 'core' ? "핵심 문장 3개" : "핵심 키워드 5~8개";
+                let full = await getFullPdfText(); 
+                const content = await p.pdfPage.getTextContent();
+                let current = content.items.map(it => it.str).join(' '); 
+                let ocrData = null;
+                
+                // 텍스트가 부족할 경우 이미지(OCR) 스캔 시도
+                if (current.trim().length < 20) {
+                    showToast("이미지형 PDF 감지: OCR 엔진으로 텍스트 추출 중... (최대 10초 소요)");
+                    const pdfCanvas = p.wrapper.querySelector('.pdf-canvas');
+                    
+                    try {
+                        const result = await Tesseract.recognize(pdfCanvas, 'kor+eng');
+                        current = result.data.text;
+                        ocrData = result.data;
+                        
+                        if (current.trim().length < 20) {
+                            throw new Error("OCR 스캔 후에도 추출 가능한 텍스트가 부족합니다.");
+                        }
+                        showToast("OCR 추출 완료! AI가 분석을 시작합니다.");
+                    } catch (e) {
+                        throw new Error(e.message || "OCR 처리 중 오류가 발생했습니다.");
+                    }
+                } else {
+                    showToast(`페이지(${state.pageNum}p) 분석 중...`);
+                }
+                
+                let instr = actionType === 'core' ? "가장 핵심이 되는 중요한 문장 3개" : "이 문서에서 가장 중요하게 다뤄지는 핵심 키워드나 전문 용어, 개념어 5~8개";
                 const pr = `문서 분석 전문가입니다.\n[전체 맥락]: ${full.substring(0, 25000)}\n[현재 페이지]: ${current}\n${instr}를 원문 그대로 추출하여 JSON 배열로 반환하세요.`;
+                
                 const sents = await fetchGeminiAPI(pr);
-                if (sents && sents.length > 0) { await renderAiStyles(state.pageNum, sents, actionType === 'core' ? 'highlight' : 'underline'); showToast('적용 완료!'); }
-            } catch (error) { showToast("AI 오류"); } finally { btn.innerHTML = original; btn.disabled = false; }
+                if (sents && sents.length > 0) { 
+                    await renderAiStyles(state.pageNum, sents, actionType === 'core' ? 'highlight' : 'underline', ocrData); 
+                    showToast('AI 적용이 완료되었습니다!'); 
+                } else {
+                    throw new Error("AI가 강조할 문장을 찾지 못했습니다.");
+                }
+            } catch (error) { 
+                console.error(error);
+                showToast("오류: " + (error.message || "알 수 없는 오류가 발생했습니다.")); 
+            } finally { 
+                btn.innerHTML = original; btn.disabled = false; 
+            }
         }
+
         document.getElementById('ai-core').onclick = () => handleAIAction('ai-core', 'core');
         document.getElementById('ai-underline').onclick = () => handleAIAction('ai-underline', 'underline');
     </script>
